@@ -2,6 +2,8 @@
 #include <GLUT/glut.h>
 #include <thread>
 #include <chrono>
+#include <cstdlib>
+
 
 #include "QuadMesh.h"
 #include "VECTOR3D.h"
@@ -49,10 +51,82 @@ Enemy::Enemy(float posX, float posY, float posZ)
       leftArmAngle(0.0f), rightArmAngle(0.0f), 
       leftLegAngle(0.0f), rightLegAngle(0.0f), 
       hipAngle(0.0f), hipVerticalShift(0.0f), 
-      cannonSpinning(false), animating(false), stepWithRightLeg(true) {}
+      cannonSpinning(false), animating(false),
+    stepWithRightLeg(true), active(true) {}
+
+
+
+void Enemy::fireProjectile(float cameraX, float cameraY, float cameraZ) {
+    // Calculate direction vector from the projectile's position to the camera
+    float directionX = cameraX - positionX;
+    float directionY = cameraY - (positionY + 2.8f); // Adjust for cannon height
+    float directionZ = cameraZ - positionZ;
+
+    // Normalize the direction vector
+    float magnitude = std::sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
+    directionX /= magnitude;
+    directionY /= magnitude;
+    directionZ /= magnitude;
+
+    // Add random accuracy offset
+    float accuracyX = ((std::rand() % 100) / 100.0f) * 0.2f - 0.1f; // Small random offset for X
+    float accuracyY = ((std::rand() % 100) / 100.0f) * 0.2f - 0.1f; // Small random offset for Y
+    float accuracyZ = ((std::rand() % 100) / 100.0f) * 0.2f - 0.1f; // Small random offset for Z
+
+    // Add the projectile to the list with randomized accuracy
+    projectiles.push_back({
+        positionX,
+        positionY + 2.8f, // Launch from the cannon height
+        positionZ,
+        directionX + accuracyX, // Adjust velocity by random offset
+        directionY + accuracyY,
+        directionZ + accuracyZ,
+        true
+    });
+}
+
+
+void Enemy::updateProjectiles() {
+    for (auto& proj : projectiles) {
+        if (proj.active) {
+            proj.posX += proj.velocityX; // Move along X-axis
+            proj.posY += proj.velocityY; // Move along Y-axis
+            proj.posZ += proj.velocityZ; // Move along Z-axis
+
+            // Deactivate the projectile if it moves too far
+            if (std::abs(proj.posX) > 50.0f || std::abs(proj.posY) > 50.0f || std::abs(proj.posZ) > 50.0f) {
+                proj.active = false;
+            }
+        }
+    }
+
+    // Remove inactive projectiles
+    projectiles.erase(
+        std::remove_if(projectiles.begin(), projectiles.end(),
+                       [](const Projectile& p) { return !p.active; }),
+        projectiles.end());
+}
+
+
+void Enemy::drawProjectiles() {
+    glColor3f(1.0f, 0.0f, 0.0f); // Red color for projectiles
+    for (const auto& proj : projectiles) {
+        if (proj.active) {
+            glPushMatrix();
+            glTranslatef(proj.posX, proj.posY, proj.posZ);
+            glScalef(1.0f, 0.5f, 1.5f); // Adjust scaling factors for the oval shape
+            glutSolidSphere(0.1, 10, 10); // Small spheres as projectiles
+            glPopMatrix();
+        }
+    }
+}
+
 
 // Function to draw the bot
 void Enemy::draw() {
+    
+    if (!active) return; // Do not draw if the robot is inactive
+
     // Set body color to metal gray
     glColor3f(0.5, 0.5, 0.5);  // Metallic gray
 
@@ -370,59 +444,13 @@ void Enemy::draw() {
         glPopMatrix();  // End of hip joint and leg assembly
     glPopMatrix(); // End of body
     
+    
+    drawProjectiles();
+
+    
 }
 
-// Draw body
-void Enemy::drawBody() {
-    glColor3f(0.5, 0.5, 0.5);  // Metallic gray
-    glPushMatrix();
-    glScalef(1.0, 1.5, 1.0);  // Scale for body shape
-    glutSolidCube(1.0);
-    glPopMatrix();
-}
 
-// Draw head
-void Enemy::drawHead() {
-    glPushMatrix();
-    glTranslatef(0.0f, 1.0f, 0.0f);  // Position head above body
-    glRotatef(headRotation, 0.0f, 1.0f, 0.0f);
-    glutSolidSphere(0.5, 20, 20);
-    glPopMatrix();
-}
-
-// Draw arms
-void Enemy::drawArms() {
-    // Left arm
-    glPushMatrix();
-    glTranslatef(-0.6f, 0.5f, 0.0f);  // Left shoulder position
-    glRotatef(leftArmAngle, 1.0f, 0.0f, 0.0f);
-    glutSolidCube(0.2);
-    glPopMatrix();
-
-    // Right arm
-    glPushMatrix();
-    glTranslatef(0.6f, 0.5f, 0.0f);  // Right shoulder position
-    glRotatef(rightArmAngle, 1.0f, 0.0f, 0.0f);
-    glutSolidCube(0.2);
-    glPopMatrix();
-}
-
-// Draw legs
-void Enemy::drawLegs() {
-    // Left leg
-    glPushMatrix();
-    glTranslatef(-0.3f, -0.75f, 0.0f);  // Left hip position
-    glRotatef(leftLegAngle, 1.0f, 0.0f, 0.0f);
-    glutSolidCube(0.2);
-    glPopMatrix();
-
-    // Right leg
-    glPushMatrix();
-    glTranslatef(0.3f, -0.75f, 0.0f);  // Right hip position
-    glRotatef(rightLegAngle, 1.0f, 0.0f, 0.0f);
-    glutSolidCube(0.2);
-    glPopMatrix();
-}
 
 // Update cannon rotation
 void Enemy::updateCannonRotation() {

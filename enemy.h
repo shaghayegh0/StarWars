@@ -1,13 +1,28 @@
 #ifndef ENEMY_H
 #define ENEMY_H
 
+#include <vector>
 
 
+// to shoot
+struct Projectile {
+    float posX, posY, posZ;
+    float velocityX, velocityY, velocityZ;
+    bool active; // Is the projectile still in motion?
+};
 
 class Enemy {
 public:
     // Constructor
     Enemy(float posX, float posY, float posZ);
+    
+    // Getter functions for position
+    float getX() const { return positionX; }
+    float getY() const { return positionY; }
+    float getZ() const { return positionZ; }
+    
+    bool isActive() const { return active; }
+    void deactivate() { active = false; }
 
     // Draw the bot
     void draw();
@@ -16,6 +31,10 @@ public:
     void updateCannonRotation();
     void startWalking();
     
+    
+    void fireProjectile(float cameraX, float cameraY, float cameraZ); // Fire a projectile
+    void updateProjectiles(); // Update projectile positions
+
     
     static void timerCallback(int value); // Static function for GLUT timer
     static void setActiveEnemy(Enemy* enemy); // Declaration for setActiveEnemy
@@ -27,6 +46,10 @@ public:
 
 
 private:
+    
+    bool active; // Track if the robot is still active
+
+    
     // Position
     float positionX, positionY, positionZ;
 
@@ -42,14 +65,14 @@ private:
     bool cannonSpinning;
     bool animating;
     bool stepWithRightLeg;
+    
+    // List of active projectiles
+    std::vector<Projectile> projectiles;
 
-    // Internal rendering functions
-    void drawBody();
-    void drawHead();
-    void drawArms();
-    void drawLegs();
     
-    
+    // Draw active projectiles
+    void drawProjectiles();
+
 
 };
 
