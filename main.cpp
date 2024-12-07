@@ -11,16 +11,6 @@
 #include <vector> // For std::vector
 #include <cstdlib> // For srand and rand
 
-// mesh
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <string>
-std::vector<GLfloat> enemyVertices;
-std::vector<GLuint> enemyIndices;
-
-
 
 
 bool explosionTriggered = false;
@@ -69,63 +59,6 @@ void specialKeys(int key, int x, int y);
 // for new phase
 bool allBotsDeactivated();
 void startNewPhase();
-
-
-
-bool loadMesh(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
-        return false;
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        std::string prefix;
-        iss >> prefix;
-
-        if (prefix == "v") {
-            GLfloat x, y, z;
-            iss >> x >> y >> z;
-            enemyVertices.push_back(x);
-            enemyVertices.push_back(y);
-            enemyVertices.push_back(z);
-        } else if (prefix == "f") {
-            GLuint vIdx[4];
-            int count = 0;
-            while (iss >> vIdx[count]) {
-                vIdx[count++]--;
-            }
-            if (count == 4) {
-                enemyIndices.push_back(vIdx[0]);
-                enemyIndices.push_back(vIdx[1]);
-                enemyIndices.push_back(vIdx[2]);
-                enemyIndices.push_back(vIdx[0]);
-                enemyIndices.push_back(vIdx[2]);
-                enemyIndices.push_back(vIdx[3]);
-            }
-        }
-    }
-
-    file.close();
-    return true;
-}
-
-void drawCustomMesh() {
-    glPushMatrix();
-    glColor3f(0.5f, 0.5f, 0.5f);
-
-    glBegin(GL_QUADS);
-    for (size_t i = 0; i < enemyIndices.size(); i++) {
-        int index = enemyIndices[i];
-        glVertex3f(enemyVertices[index * 3], enemyVertices[index * 3 + 1], enemyVertices[index * 3 + 2]);
-    }
-    glEnd();
-
-    glPopMatrix();
-}
-
 
 
 
@@ -218,8 +151,14 @@ void drawDefensiveCannon() {
             }
         } else {
             // Draw the normal cannon if not broken
+            glColor3f(0.5f, 0.5f, 0.5f);
+            GLUquadric* cannonBase = gluNewQuadric();
+            gluCylinder(cannonBase, 0.2, 0.2, 1.0, 20, 20);
+
             glPushMatrix();
-            drawCustomMesh();
+            glTranslatef(0.0f, 0.0f, 1.0f);
+            glColor3f(0.0f, 0.0f, 1.0f);
+            glutSolidSphere(0.3, 20, 20);
             glPopMatrix();
         }
     
@@ -394,10 +333,6 @@ void initOpenGL() {
     glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
     glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular);
-    
-    if (!loadMesh("mesh_data.txt")) {
-        printf("Error loading mesh\n");
-    }
 }
 
 
@@ -432,7 +367,6 @@ int main(int argc, char** argv) {
     
     // Register the special keys handler
     glutSpecialFunc(specialKeys);
-
 
 
 
