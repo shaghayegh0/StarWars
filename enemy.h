@@ -3,12 +3,21 @@
 
 #include <vector>
 
+extern void updateExplosion(int value);
 
-// to shoot
+
+// Enum to differentiate projectile sources
+enum class ProjectileSource {
+    ENEMY,
+    DEFENSIVE
+};
+
+// Updated Projectile struct with the source field
 struct Projectile {
     float posX, posY, posZ;
     float velocityX, velocityY, velocityZ;
     bool active; // Is the projectile still in motion?
+    ProjectileSource source; // New field to track the source of the projectile
 };
 
 class Enemy {

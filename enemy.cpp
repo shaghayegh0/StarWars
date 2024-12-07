@@ -41,6 +41,7 @@ bool stepWithRightLeg = true;  // Flag to alternate between legs
 
 
 
+extern bool cannonBroken;
 
 
 
@@ -59,7 +60,7 @@ Enemy::Enemy(float posX, float posY, float posZ)
 void Enemy::fireProjectile(float cameraX, float cameraY, float cameraZ) {
     // Calculate direction vector from the projectile's position to the camera
     float directionX = cameraX - positionX;
-    float directionY = cameraY - (positionY + 2.8f); // Adjust for cannon height
+    float directionY = cameraY - (positionY + 2.5f); // Adjust for cannon height
     float directionZ = cameraZ - positionZ;
 
     // Normalize the direction vector
@@ -69,19 +70,21 @@ void Enemy::fireProjectile(float cameraX, float cameraY, float cameraZ) {
     directionZ /= magnitude;
 
     // Add random accuracy offset
-    float accuracyX = ((std::rand() % 100) / 100.0f) * 0.2f - 0.1f; // Small random offset for X
-    float accuracyY = ((std::rand() % 100) / 100.0f) * 0.2f - 0.1f; // Small random offset for Y
-    float accuracyZ = ((std::rand() % 100) / 100.0f) * 0.2f - 0.1f; // Small random offset for Z
+    float accuracyX = ((std::rand() % 100) / 100.0f) * 0.2f - 0.05f; // Small random offset for X
+    float accuracyY = ((std::rand() % 100) / 100.0f) * 0.2f - 0.05f; // Small random offset for Y
+    float accuracyZ = ((std::rand() % 100) / 100.0f) * 0.2f - 0.05f; // Small random offset for Z
 
     // Add the projectile to the list with randomized accuracy
     projectiles.push_back({
         positionX,
-        positionY + 2.8f, // Launch from the cannon height
+        positionY + 2.5f, // Launch from the cannon height
         positionZ,
         directionX + accuracyX, // Adjust velocity by random offset
         directionY + accuracyY,
         directionZ + accuracyZ,
-        true
+        true,
+        ProjectileSource::ENEMY  // Mark as an enemy projectile
+
     });
 }
 
@@ -97,8 +100,26 @@ void Enemy::updateProjectiles() {
             if (std::abs(proj.posX) > 50.0f || std::abs(proj.posY) > 50.0f || std::abs(proj.posZ) > 50.0f) {
                 proj.active = false;
             }
+            
+            // Check for collision with defensive cannon
+            if (!cannonBroken && proj.source == ProjectileSource::ENEMY &&
+                fabs(proj.posX) < 0.5f &&           // Close to x = 0.0f
+                fabs(proj.posY - 4.0f) < 0.5f &&    // Close to y = 4.0f
+                fabs(proj.posZ - 15.0f) < 0.5f) {   // Close to z = 15.0f
+
+                cannonBroken = true;                // Set cannon to broken state
+                proj.active = false;                // Deactivate the projectile
+                printf("Cannon is broken!\n");
+                printf("Projectile Location: (X: %.2f, Y: %.2f, Z: %.2f)\n", proj.posX, proj.posY, proj.posZ);
+                
+                glutTimerFunc(0, updateExplosion, 0);
+
+
+            }
         }
     }
+    
+    
 
     // Remove inactive projectiles
     projectiles.erase(
@@ -522,7 +543,7 @@ void Enemy::startWalking() {
                 hipVerticalShift -= hipIncrement;
                 if (hipVerticalShift < 0.0f) hipVerticalShift = 0.0f;
             }
-
+            
             if (leftLegAngle <= -30.0f && leftKneeAngle == 180.0f && hipVerticalShift == 0.0f) {
                 stepWithRightLeg = true;  // Switch to right leg after left leg completes
                 // Reset angles for the next cycle
@@ -530,6 +551,9 @@ void Enemy::startWalking() {
                 leftKneeAngle = 180.0f;
             }
         }
+        
+
+
 
         // Redraw the scene with updated leg and hip positions
         glutPostRedisplay();
