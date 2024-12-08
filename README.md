@@ -31,8 +31,10 @@
 - Ground Texture (ground.jpg): Applied to the infinite ground plane.
 - Sky Texture (sky.jpg): Applied to the sky dome.
 
-## Lighting, shading, texture mapping
--  GPU vertex shader and a GPU fragment shader 
+## Graphic Pipeline
+- Lighting: Implemented using a vertex shader and a fragment shader.
+- Shading: Real-time shading with ambient, diffuse, and specular components.
+- Texture Mapping: Applied to all models for realistic visual effects.
 
 ## how to get custom mesh 
 1. brew install freeglut
@@ -64,5 +66,5 @@
 7. (↑): Move the camera up.
 8. (↓): Move the camera down.
    
-## Mouse Controls:
+## Mouse Controls
 1. Rotate the cannon by moving the mouse.

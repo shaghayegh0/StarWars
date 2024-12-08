@@ -38,6 +38,8 @@ GLuint bodyTexture;
 GLuint eyeTexture;
 GLuint handTexture;
 GLuint wheelTexture;
+GLuint groundTexture;
+GLuint skyTexture;
 
 
 // Vertex data for a quad (positions and texture coordinates)
@@ -262,23 +264,91 @@ void handleMouseMotion(int x, int y) {
 }
 
 
+void drawSky() {
+    // Disable lighting for the sky to keep it uniformly lit
+    glDisable(GL_LIGHTING);
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, skyTexture);
 
+    // Set the color to white to avoid tinting the texture
+    glColor3f(1.0f, 1.0f, 1.0f);
 
-
-
-// Function to draw the ground
-void drawGround() {
+    // Move the sky dome down on the Y-axis
     glPushMatrix();
-    glColor3f(0.6f, 0.8f, 0.6f);
-    glTranslatef(0.0f, -3.8f, 0.0f);  // Position the ground
+    glTranslatef(0.0f, -10.0f, 0.0f);  // Adjust the Y-axis translation as needed
+    glRotatef(270,0,1,0);
+
+    // Draw the sky dome as a hemisphere
+    int stacks = 20;      // Number of horizontal divisions
+    int slices = 40;      // Number of vertical divisions
+    float radius = 50.0f; // Radius of the sky dome
+
+    for (int i = 0; i < stacks; ++i) {
+        float theta1 = i * M_PI / (2 * stacks);
+        float theta2 = (i + 1) * M_PI / (2 * stacks);
+
+        glBegin(GL_QUAD_STRIP);
+        for (int j = 0; j <= slices; ++j) {
+            float phi = j * 2 * M_PI / slices;
+
+            // First vertex
+            float x1 = radius * sin(theta1) * cos(phi);
+            float y1 = radius * cos(theta1);
+            float z1 = radius * sin(theta1) * sin(phi);
+            glTexCoord2f((float)j / slices, (float)i / stacks);
+            glVertex3f(x1, y1, z1);
+
+            // Second vertex
+            float x2 = radius * sin(theta2) * cos(phi);
+            float y2 = radius * cos(theta2);
+            float z2 = radius * sin(theta2) * sin(phi);
+            glTexCoord2f((float)j / slices, (float)(i + 1) / stacks);
+            glVertex3f(x2, y2, z2);
+        }
+        glEnd();
+    }
+
+    glPopMatrix(); // Restore the previous matrix state
+
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_LIGHTING);  // Re-enable lighting
+}
+
+
+
+// Function to draw the ground with a repeating texture
+void drawGround() {
+    // Enable texture mapping if using a ground texture
+    if (groundTexture != 0) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, groundTexture);
+    }
+
+    glPushMatrix();
+    glColor3f(0.6f, 0.8f, 0.6f);  // Grass-like color
+    glTranslatef(0.0f, -3.8f, 0.0f);  // Position the ground at y = -3.8
+
+    // Define the size of the ground plane
+    float groundSize = 1000.0f;  // Large size to simulate infinity
+    float textureRepeat = 100.0f; // Number of times to repeat the texture
+
     glBegin(GL_QUADS);
     glNormal3f(0.0f, 1.0f, 0.0f);  // Normal pointing up
-    glVertex3f(-17.5f, 0.0f, -17.5f);
-    glVertex3f(17.5f, 0.0f, -17.5f);
-    glVertex3f(17.5f, 0.0f, 17.5f);
-    glVertex3f(-17.5f, 0.0f, 17.5f);
+
+    // Define vertices with texture coordinates for a large plane
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-groundSize, 0.0f, -groundSize);
+    glTexCoord2f(textureRepeat, 0.0f); glVertex3f(groundSize, 0.0f, -groundSize);
+    glTexCoord2f(textureRepeat, textureRepeat); glVertex3f(groundSize, 0.0f, groundSize);
+    glTexCoord2f(0.0f, textureRepeat); glVertex3f(-groundSize, 0.0f, groundSize);
+
     glEnd();
+
     glPopMatrix();
+
+    // Disable texture mapping if it was enabled
+    if (groundTexture != 0) {
+        glDisable(GL_TEXTURE_2D);
+    }
 }
 
 
@@ -543,14 +613,14 @@ void display() {
               0.0, 1.0, 0.0);  // Up direction
 
     
+    //draw sky
+    drawSky();
+    
     // Draw the ground
     drawGround();
 
     // Draw the defensive cannon
     drawDefensiveCannon();
-    
-    
-    
     
     
     // Enable texture mapping
@@ -570,15 +640,10 @@ void display() {
     
     // Disable texture
     glDisable(GL_TEXTURE_2D);
-    
-    
-    
-    
 
     // Draw defensive projectiles
     drawDefensiveProjectiles();
-    
-    
+
 
     glutSwapBuffers();
 }
@@ -759,6 +824,49 @@ void loadTextures() {
     } else {
         printf("Failed to load wheel texture\n");
     }
+    
+    // Load ground texture
+    glGenTextures(1, &groundTexture);
+    glBindTexture(GL_TEXTURE_2D, groundTexture);
+
+    data = stbi_load("/Users/sherrysanij/Documents/cps511/a3/ground.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        stbi_image_free(data);
+        printf("Ground texture loaded successfully: %dx%d, Channels: %d\n", width, height, nrChannels);
+    } else {
+        printf("Failed to ground texture\n");
+    }
+
+    
+    // Load sky texture
+    glGenTextures(1, &skyTexture);
+
+
+    glBindTexture(GL_TEXTURE_2D, skyTexture);
+
+    data = stbi_load("/Users/sherrysanij/Documents/cps511/a3/sky.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        stbi_image_free(data);
+        printf("sky texture loaded successfully: %dx%d, Channels: %d\n", width, height, nrChannels);
+    } else {
+        printf("Failed to sky texture\n");
+    }
 
     
 
@@ -783,7 +891,6 @@ void timerFunc(int value) {
             if (bot.getZ() >= 12.0f) {
                 bot.deactivate(); // Deactivate the bot
             }
-            
             
             
             if (std::rand() % 20 == 0) { // Random chance to fire a projectile
@@ -829,6 +936,14 @@ void startNewPhase() {
         Enemy(2.0f, -0.5f, -14.0f),
         Enemy(-3.0f, -0.5f, 3.0f)
     };
+    
+    // Reassign textures to the new bots
+    for (auto& bot : bots) {
+        bot.setBodyTexture(bodyTexture);
+        bot.setEyeTexture(eyeTexture);
+        bot.setHandTexture(handTexture);
+        bot.setWheelTexture(wheelTexture);
+    }
 
     animatingWalk = true;  // Restart animation
     glutTimerFunc(0, timerFunc, 0);  // Restart the timer
@@ -852,6 +967,15 @@ void restartGame() {
     };
     defensiveProjectiles.clear();
     animatingWalk = true;
+    
+    
+    // Reassign textures to the new bots
+    for (auto& bot : bots) {
+        bot.setBodyTexture(bodyTexture);
+        bot.setEyeTexture(eyeTexture);
+        bot.setHandTexture(handTexture);
+        bot.setWheelTexture(wheelTexture);
+    }
     
     glutTimerFunc(0, timerFunc, 0);
     glutPostRedisplay();
