@@ -1,4 +1,11 @@
 #define GL_SILENCE_DEPRECATION
+
+#define glGenVertexArrays glGenVertexArraysAPPLE
+#define glBindVertexArray glBindVertexArrayAPPLE
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include <GLUT/glut.h>
 #include "enemy.h"
 #include <cstdio> // For printf
@@ -19,7 +26,33 @@
 #include <string>
 std::vector<GLfloat> enemyVertices;
 std::vector<GLuint> enemyIndices;
+std::vector<GLfloat> enemyNormals;
 
+
+
+// texture
+GLuint shaderProgram;
+GLuint VAO, VBO, EBO, texture;
+// Declare textures globally
+GLuint bodyTexture;
+GLuint eyeTexture;
+GLuint handTexture;
+GLuint wheelTexture;
+
+
+// Vertex data for a quad (positions and texture coordinates)
+float vertices[] = {
+    // Positions       // Texture Coords
+    -0.5f, -0.5f, 0.0f,  0.0f, 0.0f,
+     0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
+     0.5f,  0.5f, 0.0f,  1.0f, 1.0f,
+    -0.5f,  0.5f, 0.0f,  0.0f, 1.0f
+};
+
+unsigned int indices[] = {
+    0, 1, 2,
+    2, 3, 0
+};
 
 
 
@@ -38,8 +71,8 @@ int currentPhase = 1;  // Track the current phase
 
 // Calculate the camera position
 float eyeX = 0.0;
-float eyeY = 4.5f;
-float eyeZ = 15.0f;
+float eyeY = -2.5f;
+float eyeZ = 18.0f;
 
 float cannonYaw = 0.0f;   // Left/Right rotation
 float cannonPitch = 0.0f; // Up/Down rotation
@@ -50,9 +83,9 @@ std::vector<Projectile> defensiveProjectiles; // Store projectiles fired from th
 
 // List to store all Enemy objects
 std::vector<Enemy> bots = {
-    Enemy(5.0f, 0.0f, -10.0f),
-    Enemy(0.0f, 0.0f, -15.0f),
-    Enemy(-5.0f, 0.0f, -5.0f)
+    Enemy(5.0f, -0.5f, -10.0f),
+    Enemy(0.0f, -0.5f, -15.0f),
+    Enemy(-5.0f, -0.5f, -5.0f)
 
 };
 
@@ -71,6 +104,72 @@ bool allBotsDeactivated();
 void startNewPhase();
 
 
+void loadTextures();
+
+
+GLuint compileShader(const char* path, GLenum shaderType) {
+    // Read shader code from file
+    std::ifstream shaderFile(path);
+    if (!shaderFile.is_open()) {
+        std::cerr << "Failed to open shader file: " << path << std::endl;
+        return 0;
+    }
+
+    std::stringstream buffer;
+    buffer << shaderFile.rdbuf();
+    std::string shaderCode = buffer.str();
+    const char* shaderSource = shaderCode.c_str();
+
+    // Compile shader
+    GLuint shader = glCreateShader(shaderType);
+    glShaderSource(shader, 1, &shaderSource, nullptr);
+    glCompileShader(shader);
+
+    // Check for compilation errors
+    GLint success;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        char infoLog[512];
+        glGetShaderInfoLog(shader, 512, nullptr, infoLog);
+        std::cerr << "Shader Compilation Error: " << infoLog << std::endl;
+        return 0;
+    }
+
+    return shader;
+}
+
+GLuint createShaderProgram(const char* vertexPath, const char* fragmentPath) {
+    GLuint vertexShader = compileShader(vertexPath, GL_VERTEX_SHADER);
+    GLuint fragmentShader = compileShader(fragmentPath, GL_FRAGMENT_SHADER);
+
+    // Link shaders
+    GLuint shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+
+    glBindAttribLocation(shaderProgram, 0, "aPos");
+    glBindAttribLocation(shaderProgram, 1, "aTexCoord");
+
+    glLinkProgram(shaderProgram);
+
+    // Check for linking errors
+    GLint success;
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        char infoLog[512];
+        glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
+        std::cerr << "Shader Linking Error: " << infoLog << std::endl;
+    }
+
+    // Clean up shaders (they are linked now, so we can delete them)
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    return shaderProgram;
+}
+
+
+
 
 bool loadMesh(const std::string& filename) {
     std::ifstream file(filename);
@@ -84,7 +183,16 @@ bool loadMesh(const std::string& filename) {
         std::istringstream iss(line);
         std::string prefix;
         iss >> prefix;
-
+        
+        
+        if (prefix == "vn") {
+            GLfloat nx, ny, nz;
+            iss >> nx >> ny >> nz;
+            enemyNormals.push_back(nx);
+            enemyNormals.push_back(ny);
+            enemyNormals.push_back(nz);
+        }
+        
         if (prefix == "v") {
             GLfloat x, y, z;
             iss >> x >> y >> z;
@@ -97,7 +205,11 @@ bool loadMesh(const std::string& filename) {
             while (iss >> vIdx[count]) {
                 vIdx[count++]--;
             }
-            if (count == 4) {
+            if (count == 3) {  // Triangle face
+                enemyIndices.push_back(vIdx[0]);
+                enemyIndices.push_back(vIdx[1]);
+                enemyIndices.push_back(vIdx[2]);
+            } else if (count == 4) {  // Quad face
                 enemyIndices.push_back(vIdx[0]);
                 enemyIndices.push_back(vIdx[1]);
                 enemyIndices.push_back(vIdx[2]);
@@ -114,17 +226,19 @@ bool loadMesh(const std::string& filename) {
 
 void drawCustomMesh() {
     glPushMatrix();
-    glColor3f(0.5f, 0.5f, 0.5f);
 
-    glBegin(GL_QUADS);
+    glBegin(GL_TRIANGLES);
     for (size_t i = 0; i < enemyIndices.size(); i++) {
         int index = enemyIndices[i];
+        glNormal3f(enemyNormals[index * 3], enemyNormals[index * 3 + 1], enemyNormals[index * 3 + 2]);
         glVertex3f(enemyVertices[index * 3], enemyVertices[index * 3 + 1], enemyVertices[index * 3 + 2]);
     }
     glEnd();
 
     glPopMatrix();
 }
+
+
 
 
 
@@ -155,12 +269,18 @@ void handleMouseMotion(int x, int y) {
 // Function to draw the ground
 void drawGround() {
     glPushMatrix();
-    glColor3f(0.6f, 0.8f, 0.6f);  // Light green for the ground
-    glTranslatef(0.0f, -4.0f, 0.0f);  // Position the ground
-    glScalef(35.0f, 0.0f, 35.0f);  // Scale the ground to a large plane
-    glutSolidCube(1.0);  // Use a scaled cube as the ground
+    glColor3f(0.6f, 0.8f, 0.6f);
+    glTranslatef(0.0f, -3.8f, 0.0f);  // Position the ground
+    glBegin(GL_QUADS);
+    glNormal3f(0.0f, 1.0f, 0.0f);  // Normal pointing up
+    glVertex3f(-17.5f, 0.0f, -17.5f);
+    glVertex3f(17.5f, 0.0f, -17.5f);
+    glVertex3f(17.5f, 0.0f, 17.5f);
+    glVertex3f(-17.5f, 0.0f, 17.5f);
+    glEnd();
     glPopMatrix();
 }
+
 
 void drawDefensiveCannon() {
     
@@ -172,7 +292,7 @@ void drawDefensiveCannon() {
     glPushMatrix();
     
     // Move to the camera position
-    glTranslatef(0.0f, 4.0f, 15.0f);
+    glTranslatef(0.0f, -3.0f, 15.0f);
 
     // Scale the cannon if needed for appropriate size
     glScalef(1.0f, 1.0f, 1.0f); // Increase size for better visibility
@@ -217,13 +337,80 @@ void drawDefensiveCannon() {
                 explosionComplete = true;  // Mark explosion as complete
             }
         } else {
-            // Draw the normal cannon if not broken
-            glPushMatrix();
-            drawCustomMesh();
-            glPopMatrix();
-        }
-    
 
+// wheel texture
+            
+            if (wheelTexture != 0) {
+                glEnable(GL_TEXTURE_2D);
+                glBindTexture(GL_TEXTURE_2D, wheelTexture);
+            }
+            
+            glColor3f(0.54f, 0.27f, 0.07f);
+
+
+            GLUquadric* wheel = gluNewQuadric();
+            gluQuadricTexture(wheel, GL_TRUE); // Enable texture generation for the quadric
+
+
+            glPushMatrix();
+                // Position the wheel at the base of the cannon
+                glTranslatef(-0.5f, -0.5f, 0.5f);
+                glRotatef(90.0f, 0.0f, 1.0f, 0.0f);
+
+                // Draw the wheel rim
+                gluCylinder(wheel, 0.4, 0.4, 0.2, 30, 30);
+
+                // Draw the front face of the wheel
+                glPushMatrix();
+                glTranslatef(0.0f, 0.0f, 0.0f);
+                gluDisk(wheel, 0.0, 0.4, 30, 1);
+                glPopMatrix();
+
+                // Draw the back face of the wheel
+                glPushMatrix();
+                glTranslatef(0.0f, 0.0f, 0.2f);
+                gluDisk(wheel, 0.0, 0.4, 30, 1);
+                glPopMatrix();
+            glPopMatrix();
+            
+            glPushMatrix();
+                // Position the wheel at the base of the cannon
+                glTranslatef(0.3f, -0.5f, 0.5f);
+                glRotatef(90.0f, 0.0f, 1.0f, 0.0f);
+
+                // Draw the wheel rim
+                gluCylinder(wheel, 0.4, 0.4, 0.2, 30, 30);
+
+                // Draw the front face of the wheel
+                glPushMatrix();
+                glTranslatef(0.0f, 0.0f, 0.0f);
+                gluDisk(wheel, 0.0, 0.4, 30, 1);
+                glPopMatrix();
+
+                // Draw the back face of the wheel
+                glPushMatrix();
+                glTranslatef(0.0f, 0.0f, 0.2f);
+                gluDisk(wheel, 0.0, 0.4, 30, 1);
+                glPopMatrix();
+            glPopMatrix();
+            
+            glDisable(GL_TEXTURE_2D);
+// wheel texture
+            
+            // custom mesh
+            glColor3f(0.0f, 0.0f, 0.9f);
+            glPushMatrix();
+                // Apply transformations for the custom mesh
+                glTranslatef(0.0f, 0.0f, 1.0f); // Position where the mesh should be drawn
+                glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+                glScalef(0.35f, 0.35f, 0.35f);
+                // Set color if needed
+                
+                drawCustomMesh();
+            glPopMatrix();
+
+            
+        }
 
         glPopMatrix();
 }
@@ -258,7 +445,7 @@ void fireDefensiveProjectile() {
 
     // Add a projectile with the cannon's direction
     defensiveProjectiles.push_back({
-        0.0f, 4.0f, 15.0f,         // Start at the cannon's position
+        0.0f, -3.0f, 15.0f,         // Start at the cannon's position
         directionX * 0.5f,         // Velocity in X
         directionY * 0.5f,         // Velocity in Y
         directionZ * 0.5f,         // Velocity in Z
@@ -348,27 +535,50 @@ void mouseMotion(int x, int y) {
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
+    glEnable(GL_LIGHTING);
 
-
-    
     // Set the camera view
     gluLookAt(eyeX, eyeY, eyeZ,  // Camera position
               0.0, 0.0, 0.0,   // Look-at point
               0.0, 1.0, 0.0);  // Up direction
 
+    
     // Draw the ground
     drawGround();
 
     // Draw the defensive cannon
     drawDefensiveCannon();
     
+    
+    
+    
+    
+    // Enable texture mapping
+    glEnable(GL_TEXTURE_2D);
+    // bind shader & texture
+    glUseProgram(shaderProgram);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindVertexArray(VAO);
+    
     // Draw all the bots
     for (auto& bot : bots) {
         bot.draw();
     }
+    
+    glBindVertexArray(0);
+    glUseProgram(0);  // Reset to the fixed-function pipeline if necessary
+    
+    // Disable texture
+    glDisable(GL_TEXTURE_2D);
+    
+    
+    
+    
 
     // Draw defensive projectiles
     drawDefensiveProjectiles();
+    
+    
 
     glutSwapBuffers();
 }
@@ -377,14 +587,13 @@ void display() {
 void initOpenGL() {
     glClearColor(0.5f, 0.7f, 1.0f, 1.0f);  // Light blue sky background
     glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);                    // Enable at least one light source
-    glEnable(GL_DEPTH_TEST);                // Enable depth testing
-    glShadeModel(GL_SMOOTH);                // Smooth shading
+    glEnable(GL_LIGHT0);
+    glDepthFunc(GL_LEQUAL);
+    glEnable(GL_DEPTH_TEST);
+    glShadeModel(GL_SMOOTH);
     glEnable(GL_COLOR_MATERIAL);
     glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
 
-
-    // Configure light properties
     GLfloat lightPos[] = { 0.0f, 10.0f, 10.0f, 1.0f };
     GLfloat lightAmbient[] = { 0.2f, 0.2f, 0.2f, 1.0f };
     GLfloat lightDiffuse[] = { 0.8f, 0.8f, 0.8f, 1.0f };
@@ -394,11 +603,31 @@ void initOpenGL() {
     glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
     glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular);
-    
+
     if (!loadMesh("mesh_data.txt")) {
         printf("Error loading mesh\n");
     }
+
+    // VAO and VBO setup
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    // EBO
+    glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // Enable vertex attributes (positions and texture coordinates)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 }
+
 
 
 
@@ -422,6 +651,13 @@ int main(int argc, char** argv) {
     glutCreateWindow("CPS511 - A3");
 
     initOpenGL();
+    
+    // Create and compile the shader program after OpenGL context is initialized
+    GLuint shaderProgram = createShaderProgram("vertex_shader.glsl", "fragment_shader.glsl");
+    
+    // Load textures after initializing OpenGL and shaders
+    loadTextures();
+    
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
     glutKeyboardFunc(keyboard); // Register the keyboard handler
@@ -434,11 +670,107 @@ int main(int argc, char** argv) {
     glutSpecialFunc(specialKeys);
 
 
-
-
     glutMainLoop();
     return 0;
 }
+
+void loadTextures() {
+    
+    // Load body texture
+    glGenTextures(1, &bodyTexture);
+    glBindTexture(GL_TEXTURE_2D, bodyTexture);
+
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load("/Users/sherrysanij/Documents/cps511/a3/gray.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        stbi_image_free(data);
+        printf("Body texture loaded successfully: %dx%d, Channels: %d\n", width, height, nrChannels);
+    } else {
+        printf("Failed to load body texture\n");
+    }
+    
+    
+    // Load eye texture
+    glGenTextures(1, &eyeTexture);
+    glBindTexture(GL_TEXTURE_2D, eyeTexture);
+
+    data = stbi_load("/Users/sherrysanij/Documents/cps511/a3/green.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        stbi_image_free(data);
+        printf("Eye texture loaded successfully: %dx%d, Channels: %d\n", width, height, nrChannels);
+    } else {
+        printf("Failed to load eye texture\n");
+    }
+    
+    
+    // Load hand texture
+    glGenTextures(1, &handTexture);
+    glBindTexture(GL_TEXTURE_2D, handTexture);
+
+    data = stbi_load("/Users/sherrysanij/Documents/cps511/a3/black.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        stbi_image_free(data);
+        printf("Hand texture loaded successfully: %dx%d, Channels: %d\n", width, height, nrChannels);
+    } else {
+        printf("Failed to load hand texture\n");
+    }
+    
+    
+    // Load cannon-wheel texture
+    glGenTextures(1, &wheelTexture);
+    glBindTexture(GL_TEXTURE_2D, wheelTexture);
+
+    data = stbi_load("/Users/sherrysanij/Documents/cps511/a3/wheel.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        stbi_image_free(data);
+        printf("Wheel texture loaded successfully: %dx%d, Channels: %d\n", width, height, nrChannels);
+    } else {
+        printf("Failed to load wheel texture\n");
+    }
+
+    
+
+    for (auto& bot : bots) {
+        bot.setBodyTexture(bodyTexture);
+        bot.setEyeTexture(eyeTexture);
+        bot.setHandTexture(handTexture);
+        bot.setWheelTexture(wheelTexture);
+    }
+}
+
+
 
 
 
@@ -493,9 +825,9 @@ void startNewPhase() {
 
     // Add new bots for the next phase with different positions
     bots = {
-        Enemy(8.0f, 0.0f, -8.0f),
-        Enemy(2.0f, 0.0f, -14.0f),
-        Enemy(-3.0f, 0.0f, 3.0f)
+        Enemy(8.0f, -0.5f, -8.0f),
+        Enemy(2.0f, -0.5f, -14.0f),
+        Enemy(-3.0f, -0.5f, 3.0f)
     };
 
     animatingWalk = true;  // Restart animation
@@ -514,9 +846,9 @@ void restartGame() {
     currentPhase = 1;
     bots.clear();
     bots = {
-        Enemy(5.0f, 0.0f, -10.0f),
-        Enemy(0.0f, 0.0f, -15.0f),
-        Enemy(-5.0f, 0.0f, -5.0f)
+        Enemy(5.0f, -0.5f, -10.0f),
+        Enemy(0.0f, -0.5f, -15.0f),
+        Enemy(-5.0f, -0.5f, -5.0f)
     };
     defensiveProjectiles.clear();
     animatingWalk = true;

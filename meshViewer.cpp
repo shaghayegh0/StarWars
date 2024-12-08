@@ -117,36 +117,48 @@ void initOpenGL() {
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0); // Light 0
     glEnable(GL_LIGHT1); // Light 1
+    glEnable(GL_LIGHT2); // Light 2
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_NORMALIZE);
     glShadeModel(GL_SMOOTH);
 
     // Material properties
-    GLfloat mat_ambient[] = {0.2, 0.2, 0.2, 1.0};
-    GLfloat mat_diffuse[] = {0.6, 0.7, 0.8, 1.0};
-    GLfloat mat_specular[] = {0.9, 0.9, 0.9, 1.0};
-    GLfloat mat_shininess[] = {64.0};
+    GLfloat mat_ambient[] = {0.2, 0.1, 0.1, 1.0}; // Warm reddish tones
+    GLfloat mat_diffuse[] = {0.3, 0.5, 0.9, 1.0}; // Bright blue tone
+    GLfloat mat_specular[] = {1.0, 1.0, 1.0, 1.0}; // Sharp white highlights
+    GLfloat mat_shininess[] = {64.0}; // Increased shininess for a sharper reflection
+
     glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
     glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mat_shininess);
 
-    // Light 0 (Above)
-    GLfloat light0_position[] = {0.0, 5.0, 5.0, 1.0};
-    GLfloat light0_diffuse[] = {0.8, 0.8, 0.8, 1.0};
+    // Light 0 (above)
+    GLfloat light0_position[] = {0.0, 8.0, 0.0, 1.0};
+    GLfloat light0_diffuse[] = {0.6, 0.2, 0.8, 1.0}; // Slightly bluish light
     GLfloat light0_specular[] = {1.0, 1.0, 1.0, 1.0};
+
     glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
     glLightfv(GL_LIGHT0, GL_SPECULAR, light0_specular);
 
-    // Light 1 (From the Side)
-    GLfloat light1_position[] = {-5.0, 3.0, 0.0, 1.0};
-    GLfloat light1_diffuse[] = {0.6, 0.6, 0.8, 1.0};
-    GLfloat light1_specular[] = {0.6, 0.6, 0.8, 1.0};
+    // Light 1 (diagonal from front-left)
+    GLfloat light1_position[] = {-5.0, 5.0, 5.0, 1.0};
+    GLfloat light1_diffuse[] = {0.4, 0.4, 0.6, 1.0}; // Cool, soft lighting
+    GLfloat light1_specular[] = {0.6, 0.6, 0.6, 1.0};
+
     glLightfv(GL_LIGHT1, GL_POSITION, light1_position);
     glLightfv(GL_LIGHT1, GL_DIFFUSE, light1_diffuse);
     glLightfv(GL_LIGHT1, GL_SPECULAR, light1_specular);
-    
+
+    // Light 2 (diagonal from back-right)
+    GLfloat light2_position[] = {5.0, 5.0, -5.0, 1.0};
+    GLfloat light2_diffuse[] = {0.8, 0.5, 0.4, 1.0}; // Warm light for contrast
+    GLfloat light2_specular[] = {0.8, 0.8, 0.8, 1.0};
+
+    glLightfv(GL_LIGHT2, GL_POSITION, light2_position);
+    glLightfv(GL_LIGHT2, GL_DIFFUSE, light2_diffuse);
+    glLightfv(GL_LIGHT2, GL_SPECULAR, light2_specular);
 
     // Background color
     glClearColor(0.2f, 0.3f, 0.4f, 1.0f); // Cool blue-gray background

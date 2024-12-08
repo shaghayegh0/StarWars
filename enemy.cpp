@@ -42,6 +42,8 @@ bool stepWithRightLeg = true;  // Flag to alternate between legs
 
 
 extern bool cannonBroken;
+extern GLuint texture;
+
 
 
 
@@ -147,71 +149,92 @@ void Enemy::drawProjectiles() {
 void Enemy::draw() {
     
     if (!active) return; // Do not draw if the robot is inactive
+    
+    // Bind the texture if it is valid
+    if (bodyTexture != 0) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, bodyTexture);
+    }
 
-    // Set body color to metal gray
-    glColor3f(0.5, 0.5, 0.5);  // Metallic gray
+
+    // Set body color
+    glColor3f(1.0, 1.0, 1.0);
 
     // Draw the body (an uneven trapezoidal body)
     glPushMatrix();
         glTranslatef(positionX, positionY, positionZ);
         // Use instance variables for position
-        // Use GL_QUADS to draw the trapezoid-like body
-        glBegin(GL_QUADS);
 
-        // Front face (trapezoidal)
-        glVertex3f(-0.8, -0.5, 0.5);  // Bottom-left
-        glVertex3f(0.8, -0.5, 0.5);   // Bottom-right
-        glVertex3f(0.5, 0.5, 0.5);    // Top-right (smaller top width)
-        glVertex3f(-0.5, 0.5, 0.5);   // Top-left (smaller top width)
-
-        // Back face (trapezoidal)
-        glVertex3f(-0.8, -0.5, -0.5);  // Bottom-left
-        glVertex3f(0.8, -0.5, -0.5);   // Bottom-right
-        glVertex3f(0.5, 0.5, -0.5);    // Top-right (smaller top width)
-        glVertex3f(-0.5, 0.5, -0.5);   // Top-left (smaller top width)
-
-        // Left face (rectangular)
-        glVertex3f(-0.8, -0.5, 0.5);  // Front-bottom-left
-        glVertex3f(-0.8, -0.5, -0.5); // Back-bottom-left
-        glVertex3f(-0.5, 0.5, -0.5);  // Back-top-left
-        glVertex3f(-0.5, 0.5, 0.5);   // Front-top-left
-
-        // Right face (rectangular)
-        glVertex3f(0.8, -0.5, 0.5);   // Front-bottom-right
-        glVertex3f(0.8, -0.5, -0.5);  // Back-bottom-right
-        glVertex3f(0.5, 0.5, -0.5);   // Back-top-right
-        glVertex3f(0.5, 0.5, 0.5);    // Front-top-right
-
-        // Top face (smaller rectangle)
-        glVertex3f(-0.5, 0.5, 0.5);   // Front-top-left
-        glVertex3f(0.5, 0.5, 0.5);    // Front-top-right
-        glVertex3f(0.5, 0.5, -0.5);   // Back-top-right
-        glVertex3f(-0.5, 0.5, -0.5);  // Back-top-left
-
-        // Bottom face (larger rectangle)
-        glVertex3f(-0.8, -0.5, 0.5);  // Front-bottom-left
-        glVertex3f(0.8, -0.5, 0.5);   // Front-bottom-right
-        glVertex3f(0.8, -0.5, -0.5);  // Back-bottom-right
-        glVertex3f(-0.8, -0.5, -0.5); // Back-bottom-left
-
-        glEnd(); //end of body
     
+    // Use GL_QUADS to draw the trapezoid-like body
+    glBegin(GL_QUADS);
+
+    // Front face (trapezoidal)
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.8, -0.5, 0.5);  // Bottom-left
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.8, -0.5, 0.5);   // Bottom-right
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5, 0.5, 0.5);    // Top-right
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5, 0.5, 0.5);   // Top-left
+
+    // Back face (trapezoidal)
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.8, -0.5, -0.5); // Bottom-left
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.8, -0.5, -0.5);  // Bottom-right
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5, 0.5, -0.5);   // Top-right
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5, 0.5, -0.5);  // Top-left
+
+    // Left face (rectangular)
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.8, -0.5, 0.5);  // Front-bottom-left
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(-0.8, -0.5, -0.5); // Back-bottom-left
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(-0.5, 0.5, -0.5);  // Back-top-left
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5, 0.5, 0.5);   // Front-top-left
+
+    // Right face (rectangular)
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(0.8, -0.5, 0.5);   // Front-bottom-right
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.8, -0.5, -0.5);  // Back-bottom-right
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5, 0.5, -0.5);   // Back-top-right
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(0.5, 0.5, 0.5);    // Front-top-right
+
+    // Top face (smaller rectangle)
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.5, 0.5, 0.5);   // Front-top-left
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.5, 0.5, 0.5);    // Front-top-right
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5, 0.5, -0.5);   // Back-top-right
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5, 0.5, -0.5);  // Back-top-left
+
+    // Bottom face (larger rectangle)
+    glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.8, -0.5, 0.5);  // Front-bottom-left
+    glTexCoord2f(1.0f, 0.0f); glVertex3f(0.8, -0.5, 0.5);   // Front-bottom-right
+    glTexCoord2f(1.0f, 1.0f); glVertex3f(0.8, -0.5, -0.5);  // Back-bottom-right
+    glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.8, -0.5, -0.5); // Back-bottom-left
+
+    glEnd(); // End of body
+    glDisable(GL_TEXTURE_2D);
+
 
         // Draw the neck (a small cylinder)
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, bodyTexture);
+
         glPushMatrix();
             glTranslatef(0.0, 1.0, 0.0);  // Position the neck above the body
             glRotatef(90, 1.0, 0.0, 0.0);
             GLUquadric* neck = gluNewQuadric();
             gluCylinder(neck, 0.05, 0.1, 0.25, 20, 20);  // Small neck cylinder
         glPopMatrix();
+        glDisable(GL_TEXTURE_2D);
 
         // Draw the head (a larger sphere) with rotation
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, bodyTexture);
+
+    // Create a quadric object for the sphere
+    GLUquadric* quadric = gluNewQuadric();
+    gluQuadricTexture(quadric, GL_TRUE); // Enable texture coordinates for the quadric
+
         glPushMatrix();
             glTranslatef(0.0, 1.75, 0.0);  // Move the head above the neck
             glRotatef(headRotation, 0, 1, 0);  // Rotate the head around the neck
             glScalef(1.0, 1.1, 1.0);
-            glutSolidSphere(0.75, 20, 20); // Draw a bigger sphere for the head
-    
+            gluSphere(quadric, 0.75, 20, 20); // Radius 0.75, slices 20, stacks 20
+
             // Draw the equator-like line (cut sphere in half)
             glColor3f(0.0, 0.0, 0.0);  // Set color for the equator line (black)
             int num_segments = 100;  // Number of segments to draw a smooth circle
@@ -225,52 +248,91 @@ void Enemy::draw() {
                 glVertex3f(x, -0.1, z);  // Set the vertex along the equator
             }
             glEnd();  // End drawing the line
+    // Clean up the quadric object
+    gluDeleteQuadric(quadric);
+
+    glDisable(GL_TEXTURE_2D);
+// Disable texture mapping
+
+
+// Enable texture mapping for the ears
+    if (bodyTexture != 0) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, bodyTexture);
+    }
+
+    // Create a quadric object for the ears and cylinders
+    GLUquadric* earQuadric = gluNewQuadric();
+    gluQuadricTexture(earQuadric, GL_TRUE); // Enable texture coordinates for the ears
+
+    // Draw the left ear
+    glPushMatrix();
+        glTranslatef(-0.75, -0.1, 0.0);  // Left ear position
+        gluSphere(earQuadric, 0.12, 20, 20); // Draw left ear with texture
+
+        // Draw a cylinder around the left ear
+        glPushMatrix();
+            glTranslatef(-0.08, 0.0, 0.0); // Move the cylinder to wrap around the ear
+            glRotatef(90, 0.0, 1.0, 0.0);  // Rotate to align the cylinder with the ear
+            gluCylinder(earQuadric, 0.12, 0.12, 0.15, 20, 20); // Draw the cylinder with texture
+        glPopMatrix();
+    glPopMatrix();
+
+    // Draw the right ear
+    glPushMatrix();
+        glTranslatef(0.75, -0.1, 0.0);  // Right ear position
+        gluSphere(earQuadric, 0.12, 20, 20); // Draw right ear with texture
+
+        // Draw a cylinder around the right ear
+        glPushMatrix();
+            glTranslatef(-0.08, 0.0, 0.0); // Move the cylinder to wrap around the ear
+            glRotatef(90, 0.0, 1.0, 0.0);  // Rotate to align the cylinder with the ear
+            gluCylinder(earQuadric, 0.12, 0.12, 0.15, 20, 20); // Draw the cylinder with texture
+        glPopMatrix();
+    glPopMatrix();
+
+    // Clean up the quadric object
+    gluDeleteQuadric(earQuadric);
+
+    glDisable(GL_TEXTURE_2D); // Disable texture mapping
 
     
-            // Draw the ears (two spheres at the ends of the equator) with surrounding cylinders
-            glColor3f(0.5, 0.5, 0.5);  // Set color for the ears gray
-            glPushMatrix();
-                glTranslatef(-0.75, -0.1, 0.0);  // Left ear position
-                glutSolidSphere(0.12, 20, 20);  // Draw left ear
+// body and head texture done!
 
-                // Draw a cylinder around the left ear
-                glColor3f(0.55, 0.55, 0.7);  // Set color for the cylinder
-                glPushMatrix();
-                glTranslatef(-0.08, 0.0, 0.0); // Move the cylinder to wrap around the ear
-                    glRotatef(90, 0.0, 1.0, 0.0);  // Rotate to align the cylinder with the ear
-                    GLUquadric* leftCylinder = gluNewQuadric();
-                    gluCylinder(leftCylinder, 0.12, 0.12, 0.15, 20, 20);  // Draw the cylinder (same height as ear)
-                glPopMatrix();
-            glPopMatrix();
+// eye texture //
+    
+    // Bind the eye texture if it is valid
+    if (eyeTexture != 0) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, eyeTexture);
+    }
 
-            glColor3f(0.5, 0.5, 0.5);
-            glPushMatrix();
-                glTranslatef(0.75, -0.1, 0.0);   // Right ear position
-                glutSolidSphere(0.12, 20, 20);  // Draw right ear
+    // Create a quadric object for the eyes
+    GLUquadric* eyeQuadric = gluNewQuadric();
+    gluQuadricTexture(eyeQuadric, GL_TRUE); // Enable texture coordinates for the quadric
 
-                // Draw a cylinder around the right ear
-                glColor3f(0.55, 0.55, 0.7); // Set color for the cylinder
-                glPushMatrix();
-                    glTranslatef(-0.08, 0.0, 0.0);  // Move the cylinder to wrap around the ear
-                    glRotatef(90, 0.0, 1.0, 0.0);  // Rotate to align the cylinder with the ear
-                    GLUquadric* rightCylinder = gluNewQuadric();
-                    gluCylinder(rightCylinder, 0.12, 0.12, 0.15, 20, 20);  // Draw the cylinder (same height as ear)
-                glPopMatrix();
-            glPopMatrix();
+    // Draw the left eye with texture
+    glPushMatrix();
+        glTranslatef(-0.35, 0.3, 0.7);  // Left eye position in front of the head
+        glColor3f(1.0, 1.0, 1.0);       // Set color to white (to avoid color affecting the texture)
+        gluSphere(eyeQuadric, 0.2, 20, 20); // Draw left eye with texture
+    glPopMatrix();
+
+    // Draw the right eye with texture
+    glPushMatrix();
+        glTranslatef(0.35, 0.3, 0.7);   // Right eye position in front of the head
+        glColor3f(1.0, 1.0, 1.0);       // Set color to white (to avoid color affecting the texture)
+        gluSphere(eyeQuadric, 0.2, 20, 20); // Draw right eye with texture
+    glPopMatrix();
+
+    // Clean up the quadric object
+    gluDeleteQuadric(eyeQuadric);
+
+    glDisable(GL_TEXTURE_2D); // Disable texture mapping
 
     
-    
-            // Draw the eyes (two green spheres)
-            glColor3f(0.0, 1.0, 0.0);  // Set color to green
-                glPushMatrix();
-                glTranslatef(-0.35, 0.3, 0.7);  // Left eye position in front of head
-                glutSolidSphere(0.2, 20, 20);   // Draw left eye
-            glPopMatrix();
+// eye texture //
 
-            glPushMatrix();
-                glTranslatef(0.35, 0.3, 0.7);   // Right eye position in front of head
-                glutSolidSphere(0.2, 20, 20);   // Draw right eye
-            glPopMatrix();
 
         
             // Draw the antena
@@ -303,51 +365,73 @@ void Enemy::draw() {
             glPopMatrix(); // End antena
         glPopMatrix();  // End head
 
+    
+    
+// Enable arm texture
+    // Draw left arm
+          glPushMatrix();
+              glTranslatef(-0.65, 0.6, 0.0); // Position on the left side
+
+          // Shoulder joint
+              glPushMatrix();
+                  glColor3f(0.0, 0.0, 0.0);  // Set color to black for the shoulder joint
+                  glutSolidSphere(0.2, 20, 20); // Shoulder joint sphere
+              glPopMatrix();
+
+          // Rotate arm outward for "V" shape
+              glRotatef(-30, 0, 0, 1);
+
+              glRotatef(leftArmAngle, 1, 0, 0); // Rotate arm at shoulder
+              glTranslatef(0.0, -0.5, 0.0); // Move down for upper arm
+
+          // Upper arm
+              glPushMatrix();
+                  glColor3f(0.0, 0.0, 0.0);  // Set color to black for the upper arm
+                  glScalef(0.2, 0.8, 0.2);  // Thin and long upper arm
+                  glutSolidCube(1.0);
+              glPopMatrix();
+
+          // Elbow joint
+              glPushMatrix();
+                  glTranslatef(0.0, -0.5, 0.0); // Move to elbow position
+                  glColor3f(0.5, 0.5, 0.5);  // Set color to black for the elbow joint
+                  glutSolidSphere(0.15, 20, 20); // Elbow joint sphere
+              glPopMatrix();
+
+          // Lower arm
+              glPushMatrix();
+                  glTranslatef(0.0, -1.0, 0.0);  // Move down to lower arm position
+                  glColor3f(0.0, 0.0, 0.0); // Set color to black for the lower arm
+                  glScalef(0.2, 0.8, 0.2);  // Thin lower arm
+                  glutSolidCube(1.0);
+              glPopMatrix();
+    
+// disable arm texture
+
+
        
-        // Draw left arm
-        glPushMatrix();
-            glTranslatef(-0.65, 0.6, 0.0); // Position on the left side
+// palm texture
+    if (handTexture != 0) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, handTexture);
+    }
 
-        // Shoulder joint
-            glPushMatrix();
-                glColor3f(0.0, 0.0, 0.0);  // Set color to black for the shoulder joint
-                glutSolidSphere(0.2, 20, 20); // Shoulder joint sphere
-            glPopMatrix();
+    // Create a quadric object for the palm
+    GLUquadric* handQuadric = gluNewQuadric();
+    gluQuadricTexture(handQuadric, GL_TRUE); // Enable texture coordinates for the quadric
 
-        // Rotate arm outward for "V" shape
-            glRotatef(-30, 0, 0, 1);
+    // Draw the palm with texture
+    glPushMatrix();
+        glTranslatef(0.0, -1.5, 0.0);  // Move to the palm position
+        gluSphere(handQuadric, 0.25, 20, 20);  // Draw the palm sphere with texture
+    glPopMatrix();
 
-            glRotatef(leftArmAngle, 1, 0, 0); // Rotate arm at shoulder
-            glTranslatef(0.0, -0.5, 0.0); // Move down for upper arm
+    // Clean up the quadric object
+    gluDeleteQuadric(handQuadric);
 
-        // Upper arm
-            glPushMatrix();
-                glColor3f(0.0, 0.0, 0.0);  // Set color to black for the upper arm
-                glScalef(0.2, 0.8, 0.2);  // Thin and long upper arm
-                glutSolidCube(1.0);
-            glPopMatrix();
+    glDisable(GL_TEXTURE_2D); // Disable texture mapping
 
-        // Elbow joint
-            glPushMatrix();
-                glTranslatef(0.0, -0.5, 0.0); // Move to elbow position
-                glColor3f(0.5, 0.5, 0.5);  // Set color to black for the elbow joint
-                glutSolidSphere(0.15, 20, 20); // Elbow joint sphere
-            glPopMatrix();
-
-        // Lower arm
-            glPushMatrix();
-                glTranslatef(0.0, -1.0, 0.0);  // Move down to lower arm position
-                glColor3f(0.0, 0.0, 0.0); // Set color to black for the lower arm
-                glScalef(0.2, 0.8, 0.2);  // Thin lower arm
-                glutSolidCube(1.0);
-            glPopMatrix();
-
-        // Palm
-            glPushMatrix();
-                glTranslatef(0.0, -1.5, 0.0);  // Move to the palm position
-                glColor3f(0.4, 0.4, 0.4);  // Gray palm
-                glutSolidSphere(0.25, 20, 20);  // Palm sphere
-            glPopMatrix();
+// palm texture
 
         glPopMatrix();
 
@@ -389,12 +473,28 @@ void Enemy::draw() {
                 glutSolidCube(1.0);
             glPopMatrix();
 
-        // Palm
-            glPushMatrix();
-                glTranslatef(0.0, -1.5, 0.0);  // Move to the palm position
-                glColor3f(0.4, 0.4, 0.4);  // Gray palm
-                glutSolidSphere(0.25, 20, 20);  // Palm sphere
-            glPopMatrix();
+// palm texture
+    if (handTexture != 0) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, handTexture);
+    }
+
+    // Create a quadric object for the palm
+    handQuadric = gluNewQuadric();
+    gluQuadricTexture(handQuadric, GL_TRUE); // Enable texture coordinates for the quadric
+
+    // Draw the palm with texture
+    glPushMatrix();
+        glTranslatef(0.0, -1.5, 0.0);  // Move to the palm position
+        gluSphere(handQuadric, 0.25, 20, 20); // Draw the palm sphere with texture
+    glPopMatrix();
+
+    // Clean up the quadric object
+    gluDeleteQuadric(handQuadric);
+
+    glDisable(GL_TEXTURE_2D); // Disable texture mapping
+
+// palm texture
 
         glPopMatrix();
 
@@ -563,3 +663,18 @@ void Enemy::startWalking() {
     }
 }
 
+void Enemy::setBodyTexture(GLuint tex) {
+    bodyTexture = tex;
+}
+
+void Enemy::setEyeTexture(GLuint tex) {
+    eyeTexture = tex;
+}
+
+void Enemy::setHandTexture(GLuint tex) {
+    handTexture = tex;
+}
+
+void Enemy::setWheelTexture(GLuint tex) {
+    wheelTexture = tex;
+}

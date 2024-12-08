@@ -1180,11 +1180,11 @@ void keyboardHandler3D(unsigned char key, int x, int y)
         exit(0);
         break;
     case 'e':
-        exportMeshToFile("/Users/sherrysanij/Downloads/Assignment2-SkeletonCode/mesh_data.txt");
+        exportMeshToFile("/Users/sherrysanij/Documents/cps511/a3/mesh_data.txt");
 
         break;
     case 'i':
-        importMeshFromFile("/Users/sherrysanij/Downloads/Assignment2-SkeletonCode/mesh_data.txt");
+        importMeshFromFile("/Users/sherrysanij/Documents/cps511/a3/mesh_data.txt");
 
         break;
     case 'l':

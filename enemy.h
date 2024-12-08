@@ -5,6 +5,12 @@
 
 extern void updateExplosion(int value);
 
+// Global texture declarations
+extern GLuint bodyTexture;
+extern GLuint eyeTexture;
+extern GLuint handTexture;
+extern GLuint wheelTexture;
+
 
 // Enum to differentiate projectile sources
 enum class ProjectileSource {
@@ -51,10 +57,24 @@ public:
     
     void setAnimating(bool value) { animating = value; }
     bool isAnimating() const { return animating; }
+    
+
+    // Setters for different textures
+    void setBodyTexture(GLuint tex);
+    void setEyeTexture(GLuint tex);
+    void setHandTexture(GLuint tex);
+    void setWheelTexture(GLuint tex);
+
 
 
 
 private:
+    
+    // Texture IDs
+    GLuint bodyTexture;
+    GLuint eyeTexture;
+    GLuint handTexture;
+    GLuint wheelTexture;
     
     bool active; // Track if the robot is still active
 
